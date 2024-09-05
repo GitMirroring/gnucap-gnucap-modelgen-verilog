@@ -427,9 +427,6 @@ void OUT_ANALOG::make_stmt(std::ostream& o, Statement const& ab) const
   }else if(auto assign=dynamic_cast<Assignment const*>(&ab)) { untested();
     // incomplete.
     make_assignment(o, *assign);
-  }else if(auto ard=dynamic_cast<Variable_Stmt const*>(&ab)) {
-    incomplete();
-    assert(0);
   }else if(auto cs=dynamic_cast<AnalogConditionalStmt const*>(&ab)) {
     make_cond(o, *cs);
   }else if(auto ss=dynamic_cast<AnalogSwitchStmt const*>(&ab)) {
@@ -1180,9 +1177,7 @@ void OUT_ANALOG::make_analog_list(std::ostream& o, const Module& m) const
     o__ "(void)p;\n";
     o__ "COMMON_" << m.identifier() << " const* pc = this;\n";
     o__ "(void)pc;\n";
-    o__ "PRECALC_" << m.identifier() << " P(m);\n"; // BUG/HACK
-    o__ "PRECALC_" << m.identifier() << "* d = &P;\n";
-    o__ "(void)d;\n";
+    o__ "MOD_" << m.identifier() << "* d = m;\n";
   }else if(is_dynamic()){
     o__ "MOD_" << m.identifier() << " const* p = d;\n";
     o__ "assert(p);\n";
