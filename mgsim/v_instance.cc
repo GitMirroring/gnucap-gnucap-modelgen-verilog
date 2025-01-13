@@ -177,10 +177,10 @@ private: // overrides
   }
   void set_param_by_index(int i, std::string& value, int) override {
     int idx;
-    if(i<0){
+    if(i<0){ untested();
       idx = -i-1;
     }else{ untested();
-      idx = i+1;
+      idx = i;
     }
     trace3("spbi", i, idx, value);
 
@@ -188,6 +188,7 @@ private: // overrides
     if(int(_params.size()) == idx){
       _params.push_back(std::make_pair("", value));
     }else{ untested();
+      assert(0);
       throw Exception(long_label() + ": param assign out of order");
     }
   }
@@ -324,8 +325,7 @@ void INSTANCE::prepare_overload(CARD* model, std::string modelname, DEV_INSTANCE
       trace4("stub param fwd1", c->long_label(), i, _params[i].first, _params[i].second);
       std::string value = _params[i].second;
       if(_params[i].first == ""){
-	int idx = c->param_count() - i - 1;
-	c->set_param_by_index(idx, value, 0);
+	c->set_param_by_index(i, value, 0);
       }else if(_params[i].first == "$mfactor"){
 	// needed?
 	c->set_param_by_name(_params[i].first, value);
