@@ -134,7 +134,7 @@ void Variable_Stmt::parse(CS& f)
 void Variable_Decl::update()
 {
   assert(_token);
-  _data->clear();
+//  _data->clear();
   new_var_ref_(); // already declared
 }
 /*--------------------------------------------------------------------------*/
@@ -741,7 +741,7 @@ void Assignment::dump(std::ostream& o) const
   if(_token){
     o << _token->name() << " = ";
     Expression_::dump(o);
-  }else{
+  }else{ untested();
 //    o << "/// unreachable?\n";
   }
 }

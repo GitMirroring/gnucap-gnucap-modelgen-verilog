@@ -3,15 +3,15 @@ module dep0(d, g);
   electrical d, g;
   analog begin : main // always
     // S : 1
-    // T : 0
-    // c : 0
-    real c// [] *
+    // T : 1
+    // c : 1
+    real c// [V(g)] *
 ;
-    real T// [] *
+    real T// [V(g)] *
 ;
-    real S// [] +
+    real S// [V(g)] +
 ;
-    S = T; // s3 r3
+    S = T; // dep: V(g) s3 r3
     while (1) begin
       // T : 1
       // c : 1

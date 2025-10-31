@@ -3,14 +3,14 @@ module dep0(d, g);
   electrical d, g;
   analog begin : main // always
     // T : 1
-    // c : 0
-    real c// [] +
+    // c : 1
+    real c// [V(g)] +
 ;
-    real T// [] *
+    real T// [V(g)] *
 ;
-    c = T; // s3 r4
+    c = T; // dep: V(g) s3 r4
     T = V(g); // dep: V(g) s1 r4
-    I(d) <+ c; // s3 r1
+    I(d) <+ c; // dep: V(g) s3 r1
     I(g) <+ V(g); // dep: V(g) r1
   end
 

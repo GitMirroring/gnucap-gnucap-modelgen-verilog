@@ -1,13 +1,13 @@
 module test_bug_block1(p, n);
   electrical p, n;
   analog begin : NAME // always
-    // G_s : 0
+    // G_s : 1
     // ms : 0
     // xgt : 1
-    real xgt// [] *
+    real xgt// [V(p)] *
 , ms// [] *
 ;
-    real G_s// [] *
+    real G_s// [V(p)] *
 ;
     begin : A
       if ((abs(xgt) <= ms)) begin
@@ -17,12 +17,12 @@ module test_bug_block1(p, n);
         end
         else begin
           begin : B
-            real N// [] *
+            real N// [V(p)] *
 ;
-          // G_s : 0
-          // N : 0
-            N = xgt; // s3 r3
-            G_s = N; // s4 r3
+          // G_s : 1
+          // N : 1
+            N = xgt; // dep: V(p) s3 r3
+            G_s = N; // dep: V(p) s4 r3
           end
         end
       end

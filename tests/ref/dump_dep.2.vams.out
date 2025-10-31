@@ -2,14 +2,14 @@ module dep0(d, g);
   inout d, g;
   electrical d, g;
   analog begin : main // always
-    // T : 0
-    // c : 0
+    // T : 1
+    // c : 1
     // d : 1
-    real c// [] *
+    real c// [V(g)] *
 ;
-    real d// [] +
+    real d// [V(g)] +
 ;
-    real T// [] *
+    real T// [V(g)] *
 ;
     while (1) begin
       // T : 1

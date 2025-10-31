@@ -18,14 +18,14 @@ module dep0(d, g);
   endfunction
 
   analog begin : main // always
-    // a : 0
+    // a : 1
     // b : 0
-    // c : 0
-    real a// [] +
+    // c : 1
+    real a// [V(g)] +
 ;
     real b// [] *
 ;
-    real c// [] +
+    real c// [V(g)] +
 ;
     begin
     // a : 1
