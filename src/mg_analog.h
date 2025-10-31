@@ -116,7 +116,6 @@ public:
 class AnalogSeqBlock : public SeqBlock {
 protected: // BUG?
   TData _deps;
-protected:
 public:
   explicit AnalogSeqBlock() : SeqBlock() {}
   explicit AnalogSeqBlock(CS& cmd, Base* owner) : SeqBlock() { untested();
@@ -126,9 +125,7 @@ public:
 public:
   void parse(CS& cmd)override;
   void dump(std::ostream& o)const override;
-  SeqBlock const& block()const {
-    return *this;
-  }
+  SeqBlock const& block()const { return *this; }
 public: // sensitivities?
 //  void set_never() { untested(); _block.set_never(); }
 //  void set_always() { untested(); _block.set_always(); }
@@ -189,6 +186,8 @@ public: // can't resolve these..
   void dump(std::ostream& f)const override;
   Base* lookup(std::string const& f, bool recurse=true)override;
   Token_ARGUMENT* new_arg(std::string const& name, Base* owner);
+  bool update();
+  int num_args()const {return int(_arg_by_idx.size());}
 };
 /*--------------------------------------------------------------------------*/
 class AnalogFunctionBody : // public AnalogSeqBlock

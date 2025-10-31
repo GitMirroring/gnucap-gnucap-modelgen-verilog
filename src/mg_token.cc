@@ -598,23 +598,53 @@ static TData* new_deps(Base const* data)
     }
     return d;
   }else{ untested();
-    assert(0);
+    unreachable();
     return new TData;
   }
 }
 /*--------------------------------------------------------------------------*/
 static void stack_op_args(Expression* EE, Expression const* arg_expr, FUNCTION_ const* f)
 {
+  trace0("stackop args");
+  std::vector<Token*> args;
+  for (Expression::const_iterator i = arg_expr->begin(); i != arg_expr->end(); ++i) {
+    (**i).stack_op(EE);
+    args.push_back(EE->back());
+  }
   int ii = 0;
   for (Expression::const_iterator i = arg_expr->begin(); i != arg_expr->end(); ++i) {
+    TData iideps;
     trace2("stackop stash arg", (**i).name(), f->is_output_arg(ii));
+    assert(!dynamic_cast<Token_VAR_DECL*>(*i));
+    assert(!dynamic_cast<Token_ARGUMENT*>(*i));
+    assert(EE->size());
+
     if(!f->is_output_arg(ii)){
-      (**i).stack_op(EE);
-    }else if(auto tt = dynamic_cast<Token_VAR_REF*>(*i)){
-      tt->stack_op(EE);
-    }else{
+    }else if(auto output_arg = dynamic_cast<Token_VAR_REF*>(args[ii])){
+      auto dd = prechecked_cast<TData const*>(output_arg->data());
+      assert(dd);
+      assert(f->arg_data(ii));
+
+      trace3("stackop dep args?", (**i).name(), ii, f->arg_data(ii)->size());
+      for(Dep const& d : f->arg_data(ii)->ddeps()) {
+	trace2("stackop dep arg", (**i).name(), d.name());
+	for(int k = 0; k < int(arg_expr->size()); ++k){
+	  auto input_arg = prechecked_cast<Token_VAR_REF*>(args[k]);
+	  assert(input_arg); // really?
+	  if(d.token() == f->arg_token(k)) {
+	    assert(output_arg);
+	    // "ii" depends on "k"
+	    trace2("stackop prop dep", output_arg->name(), input_arg->name());
+	    output_arg->propagate_deps(*input_arg);
+	    // input_arg->propagate_deps(*tt);
+	  }else{
+	    trace2("stackop prop dep miss", output_arg->name(), input_arg->name());
+	  }
+	}
+      }
+
+    }else{ untested();
       unreachable();
-      (**i).stack_op(EE);
     }
     ++ii;
   }
@@ -657,6 +687,7 @@ void Token_CALL::stack_op(Expression* e) const
     }else{
       trace1("CALL stash", name());
       auto SE = prechecked_cast<Expression_*>(E);
+      assert(SE);
       auto EE = new Expression_;
       EE->set_owner(SE->owner());
       assert(EE->scope());
@@ -923,6 +954,7 @@ size_t Token_VAR_REF::num_deps() const
 /*--------------------------------------------------------------------------*/
 void Token_VAR_REF::stack_op(Expression* e)const
 {
+  trace2("Token_VAR_REF::stack_op", name(), typeid(*_item).name());
   auto E = prechecked_cast<Expression_*>(e);
   assert(E);
 //  assert(_item); // or !reachable
@@ -1120,12 +1152,16 @@ bool Token_VAR_REF::propagate_deps(Token_VAR_REF const& from)
    auto ad = dynamic_cast<TData*>(_item);
    assert(ad);
    ad->update(from.deps());
-  }else if(auto dd=dynamic_cast<TData*>(_item)){ untested();
+  }else
+#if 0
+  if(auto dd=dynamic_cast<TData*>(_item)){ untested();
     unreachable();
     TData const& incoming = from.deps();
     dd->update(incoming);
     assert(deps().ddeps().size() >= incoming.ddeps().size());
-  }else if(auto it=dynamic_cast<Assignment*>(_item)){
+  }else
+#endif
+  if(auto it=dynamic_cast<Assignment*>(_item)){
     trace2("Token_VAR_REF::propagate assign", type(), from.type());
     assert(it->scope());
     assert(from.scope());
@@ -1187,6 +1223,7 @@ Data_Type const& Token_VAR_DECL::type() const
 /*--------------------------------------------------------------------------*/
 void Token_VAR_DECL::stack_op(Expression* e)const
 {
+  trace2("Token_VAR_DECL::stack_op", name(), typeid(*_item).name());
   auto E = prechecked_cast<Expression_*>(e);
   assert(E);
   auto xx = dynamic_cast<Statement*>(E->owner());
@@ -1211,8 +1248,11 @@ void Token_VAR_DECL::stack_op(Expression* e)const
       incomplete();
     }
 
-    auto nn = new Token_VAR_REF(name(), E->scope(), nd);
+    auto nn = new Token_VAR_REF(name(), _item, nd);
     assert(nn->scope());
+    if(nn->scope() == E->scope()){
+    }else{
+    }
     e->push_back(nn);
 
   }

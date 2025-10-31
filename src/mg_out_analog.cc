@@ -218,6 +218,7 @@ void OUT_ANALOG::make_assignment(std::ostream& o, Assignment const& a) const
   std::string lhsname = a.lhs().code_name();
   std::string name = a.lhs().name();
   o__ "{ // Assignment " << a.type() << " '" << name << "'.\n";
+  o____ "// ddeps: " << a.data().ddeps().size() << " " <<  e.data().ddeps().size() << "\n";
 
   // wrong place?
 //   if(!a.is_used()){ untested();
@@ -252,6 +253,9 @@ void OUT_ANALOG::make_assignment(std::ostream& o, Assignment const& a) const
       for(Dep const& v : a.data().ddeps()) {
 	o__ "// " << a.lhs().code_name() << "[d" << code_name(v) << "] = " << "t0[d" << code_name(v) << "]; // (2a)\n";
 	o__ "assert(" << a.lhs().code_name() << "[d" << code_name(v) << "] == " << "t0[d" << code_name(v) << "]); // (2a2)\n";
+#ifdef TRACE_ASSIGN
+	o__ "trace1(\"assign\", " << lhsname << "[d" << v->code_name() << "]);\n";
+#endif
       }
     }else{
       o__ lhsname << " = t0.value(); // (*)\n";
@@ -295,7 +299,12 @@ void OUT_ANALOG::make_contrib(std::ostream& o, Contribution const& C) const
   Expression const& e = C.rhs();
 
   for(Dep const& v : C.data().ddeps()) {
-    trace2("contrib dep", C.name(), code_name(v));
+    o__ "// contrib dep " << C.name() << ", " << probe(v)->code_name() << "\n";
+  }
+  auto e_ = prechecked_cast<Expression_ const*>(&e);
+  assert(e_);
+  for(auto v : e_->data().ddeps()) {
+    o__ "// contrib rhs dep " << C.name() << ", " << probe(v)->code_name() << "\n";
   }
 
   o__ "{ // Contribution " << C.name() << C.branch_ref() << " lin: " << C.data().is_linear() << "\n";
@@ -307,7 +316,13 @@ void OUT_ANALOG::make_contrib(std::ostream& o, Contribution const& C) const
   }else if(C.branch()->is_short()){
   }else{
     indent x;
-    make_cc_expression(o, e);
+    std::string lhsname = make_cc_expression(o, e);
+#ifdef TRACE_ASSIGN
+    //o__ "trace1(\"c assign\", " << lhsname << ");\n";
+    //for(auto v : C.data().ddeps()) {
+    //  o__ "trace1(\"c assign\", " << lhsname << "[d" << v->code_name() << "]);\n";
+    //}
+#endif
 
     char sign = C.reversed()?'-':'+';
     std::string bcn = C.branch_ref().code_name();
@@ -424,6 +439,7 @@ void OUT_ANALOG::make_block(std::ostream& o, Block const& ab) const
 /*--------------------------------------------------------------------------*/
 void OUT_ANALOG::make_stmt(std::ostream& o, Statement const& ab) const
 {
+  o__ "// make_stmt " << ctx() << "\n";
   if(_src && !ab.is_used_in(_src)){
     o << "// omit Statement " << typeid(ab).name() << "\n";
     return;
@@ -536,6 +552,7 @@ void OUT_ANALOG::make_af_args(std::ostream& o, const Analog_Function& f) const
 /*--------------------------------------------------------------------------*/
 void OUT_ANALOG::make_af_body(std::ostream& o, const Analog_Function& f) const
 {
+  o__ "// make_af_body " << ctx() << "\n";
   auto vv = prechecked_cast<Token_VAR_REF const*>( f.variable() );
   assert(vv);
   std::string me = vv->code_name();

@@ -303,7 +303,6 @@ void AnalogProceduralAssignment::dump(std::ostream& o)const
     o << ";";
     if(options().dump_annotate()){
       dump_annotate(o, *this);
-      // dump_annotate(o, _a);
     }else{
     }
     o << "\n";
@@ -1771,6 +1770,14 @@ public:
     assert(_af);
     return _af->is_output_arg(I);
   }
+  TData const* arg_data(int I)const override {
+    assert(_af);
+    return _af->arg_data(I);
+  }
+  Token const* arg_token(int I)const override {
+    assert(_af);
+    return _af->arg_token(I);
+  }
   Data_Type const* arg_type(int I)const override {
     assert(_af);
     return _af->arg_type(I);
@@ -1897,7 +1904,9 @@ TData const* Analog_Function::arg_data(int I) const
   Token const* t = arg_token(I);
   auto a = prechecked_cast<Token_ARGUMENT const*>(t);
   assert(a);
-  if(a->_var){
+  if(auto td = dynamic_cast<TData const*>(t->data())){
+    return td;
+  }else if(a->_var){ untested();
     auto ret = prechecked_cast<TData const*>(a->_var->data());
     assert(ret);
     return ret;
@@ -2128,12 +2137,10 @@ bool AnalogFunctionArgs::new_var_ref(Base* b)
   auto t = prechecked_cast<Token*>(b);
   assert(t);
   trace1("AF_args::new_var_ref", t->name());
-  Base* ex = nullptr;
-  if(auto T = dynamic_cast<Token const*>(b)){
-    ex = lookup(T->name(), false);
-    trace1("AF_args::new_var_ref0", ex);
-  }else{ untested();
-  }
+  auto T = dynamic_cast<Token const*>(b);
+  assert(T);
+  Base* ex = lookup(T->name(), false);
+  trace1("AF_args::new_var_ref0", ex);
 
   Token_ARGUMENT* arg = nullptr;
   Token_VAR_DECL* decl = nullptr;
@@ -2147,6 +2154,7 @@ bool AnalogFunctionArgs::new_var_ref(Base* b)
       arg->_var = dd;
       return Block::new_var_ref(arg);
     }else if(auto tt = dynamic_cast<Token*>(ex)){ untested();
+      unreachable();
       return Block::new_var_ref(tt);
     }else if(ex){ untested();
       unreachable();
@@ -2174,9 +2182,22 @@ bool AnalogFunctionArgs::new_var_ref(Base* b)
       return Block::new_var_ref(b);
     }
   }else if(auto r = dynamic_cast<Token_VAR_REF*>(b)) {
+#if 1
     trace1("AF_args::new_var_ref REF", r->name());
     // getting here during update, linking back body var refs
     return Block::new_var_ref(b);
+#else
+    if(!ex){
+      trace1("AF no ex", r->name());
+    }else if(auto ea = dynamic_cast<Token_ARGUMENT*>(ex)){
+      trace1("AF link ex", r->name());
+      ea->_var = r;
+    }else{
+      unreachable();
+      trace1("AF link bogus ex", r->name());
+    }
+    // return Block::new_var_ref(b);
+#endif
   }else{ untested();
     unreachable();
     return Block::new_var_ref(b);

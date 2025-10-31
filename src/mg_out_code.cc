@@ -20,10 +20,10 @@
  */
 /*--------------------------------------------------------------------------*/
 #include "mg_code.h"
+/*--------------------------------------------------------------------------*/
 char const* code_name(Data_Type const*x)
 {
   if(!x) { untested();
-    unreachable();
     return "ddouble"; //?
   }else if(x->is_real()) {
     return "ddouble";

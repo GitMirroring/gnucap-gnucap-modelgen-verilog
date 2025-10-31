@@ -249,6 +249,7 @@ class RPN_VARS {
   std::stack<type> _types;
   std::stack<int> _args;
   std::stack<std::string> _refs;
+  std::stack<TData const*> _deps;
 
   stack _flt_stack;
   stack _ddo_stack;
@@ -263,9 +264,10 @@ class RPN_VARS {
   int _str_alloc{0};
   int _arr_idx{-1};
   int _arr_alloc{0};
-  TData const* _deps;
 public:
-  explicit RPN_VARS(TData const* d) : _deps(d) {}
+  explicit RPN_VARS(TData const* d) {
+    _deps.push(d);
+  }
   ~RPN_VARS(){
     assert(_flt_idx == -1);
     assert(_ddo_idx == -1);
@@ -328,19 +330,23 @@ public:
       assert(_ddo_idx==_ddo_alloc);
       ++_ddo_alloc;
       assert(_ddo_idx>=0);
-      if(_deps){
+      if(!options().optimize_deriv()){
 	o__ "ddouble t" << _ddo_idx << ";\n";
-      }else{
-	o__ "ddouble t" << _ddo_idx << ";\n"; // TODO? some deps?
-      }
-      if(!_deps){
-      }else if(!options().optimize_deriv()){
-	o__ "t" << _ddo_idx << ".set_all_deps(); // (all deriv)\n"; // code_name??
-      }else{
-	o__ "//t" << _ddo_idx << ".set_no_deps();\n"; // ...
-	for(Dep const& i: _deps->ddeps()){
-	  o__ "//t" << _ddo_idx << "[d" << probe(i)->code_name() << "] = 0.; // (output dep)\n";
+	o__ "t" << _ddo_idx << ".set_all_deps(); // (1)\n"; // code_name??
+      }else if(has_deps()){
+	o__ "ddd<";
+	std::string sep;
+	for(Dep const& i: deps().ddeps()){
+	  o << sep << "d" << probe(i)->code_name();
+	  sep = ", ";
 	}
+	o << "> t" << _ddo_idx << "; // (2)\n";
+      }else{
+	o__ "ddouble t" << _ddo_idx << ";\n";
+	o__ "t" << _ddo_idx << ".set_all_deps(); // (3)\n"; // code_name??
+	// o__ "ddd<";
+	// std::string sep;
+	// o << "> t" << _ddo_idx << "; // (3)\n";
       }
     }
     _types.push(t_ddo);
@@ -413,6 +419,9 @@ public:
     _str_stack.pop();
     _arr_alloc = _arr_stack.top();
     _arr_stack.pop();
+
+    _deps.pop();
+    assert(_deps.size());
   }
   void args_pop(){
     assert(!_args.empty());
@@ -439,8 +448,9 @@ public:
       return "";
     }
   }
-  bool has_deps()const { return _deps; }
-  TData const& deps()const { untested(); assert(_deps); return *_deps; }
+  bool has_deps()const { assert(_deps.size()); return _deps.top() && _deps.top()->size(); }
+  TData const& deps()const { assert(_deps.size()); return *_deps.top(); }
+  void push_deps(TData const* t) {_deps.push(t);}
 }; // RPN_VARS
 /*--------------------------------------------------------------------------*/
 class OUT_EXPRESSION {
@@ -545,8 +555,30 @@ void OUT_EXPRESSION::make_cc_array(std::ostream& o, Token_ARRAY_ const* A)
   vars().args_pop();
 }
 /*--------------------------------------------------------------------------*/
+// dup in mg_token.cc
+static TData* new_deps(Base const* data)
+{
+  if(auto ee = dynamic_cast<Expression const*>(data)){
+    auto d = new TData;
+    d->set_constant();
+    for (Expression::const_iterator i = ee->begin(); i != ee->end(); ++i) {
+      trace1("collect deps", (**i).name());
+      if(auto dd=dynamic_cast<TData const*>((*i)->data())){
+	trace1("collect deps", dd->ddeps().size());
+	d->update(*dd);
+      }else{
+      }
+    }
+    return d;
+  }else{ untested();
+    assert(0);
+    return new TData;
+  }
+}
+/*--------------------------------------------------------------------------*/
 void OUT_EXPRESSION::make_cc_call(std::ostream& o, Token_CALL const* F)
 {
+  TData* edeps=nullptr;
   Data_Type const* rt = (*F)->return_type();
   if(!rt) {
     o__ "/* void? */\n";
@@ -558,15 +590,21 @@ void OUT_EXPRESSION::make_cc_call(std::ostream& o, Token_CALL const* F)
   }
   vars().stop();
   vars().enter_scope();
-  o__ "{ // scope\n"; {
+  o__ "{ // scope " << _ctx << "\n"; {
   indent x;
-  if(F->args()){
-    o__ "// F " << F->name() << " args:" << vars().have_args() << "\n";
-    auto se = prechecked_cast<Expression const*>(F->args());
+
+  if(Base const* args = F->args()){
+    auto se = prechecked_cast<Expression_ const*>(args);
     assert(se);
+    edeps = new_deps(se);
+    if(_ctx == "af"){
+      vars().push_deps(nullptr);
+    }else{
+      vars().push_deps(edeps);
+    }
     make_cc_expression_(o, *se);
   }else{
-    o__ "// function " << F->name() << " args:" << vars().have_args() << "\n";
+    vars().push_deps(edeps);
   }
 
   std::vector<std::string> argnames;
@@ -579,11 +617,12 @@ void OUT_EXPRESSION::make_cc_call(std::ostream& o, Token_CALL const* F)
     }
   }else{
   }
-  o__ "// --- \n";
   vars().args_pop();
   vars().leave_scope();
   if(!rt) {
     o__"(void)" <<  vars().code_name() << ";\n";
+  }else if(rt->is_real()){
+    o__ vars().code_name() << " = /*ddouble*/(";
   }else{
     o__ vars().code_name() << " = ";
   }
@@ -629,12 +668,20 @@ void OUT_EXPRESSION::make_cc_call(std::ostream& o, Token_CALL const* F)
 	o << "io_arg(" << ::code_name((*F)->arg_type(nn)) << "(), " << argnames[ii] << ")";
       }else{
 	o << argnames[ii];
+//	o << code_name((*F)->arg_type(nn)) << "(" << argnames[ii] << ")";
       }
       comma = ", ";
     }
   }
-  o << "); // (659)\n";
+  if(!rt) {
+    o << "); // (659)\n";
+  }else if(rt->is_real()){
+    o << ")); // (633)\n";
+  }else{
+    o << "); // (635)\n";
+  }
   } o__ "} // scope\n";
+  delete edeps;
 }
 /*--------------------------------------------------------------------------*/
 std::string OUT_EXPRESSION::make_cc_expression_(std::ostream& o, Expression const& e)
@@ -668,13 +715,14 @@ std::string OUT_EXPRESSION::make_cc_expression_(std::ostream& o, Expression cons
 //      //incomplete();
 //      //o__ "0.; // OUTVAR?!\n";
     }else if(auto pp = dynamic_cast<const Token_ACCESS*>(*i)) {
+      // BUG? Token_CALL..
       vars().new_ddouble(o);
       if(!vars().has_deps()){
       }else if(options().optimize_deriv()){
-	o__ vars().code_name() << ".set_no_deps();\n";
-	// for(auto i: vars().deps()){ untested();
-	//   o__ vars().code_name() << "[d" << i->code_name() << "] = 0.; // (output dep)\n";
-	// }
+//	o__ vars().code_name() << ".set_no_deps();\n";
+	for(auto j: vars().deps().ddeps()){
+	  o__ "//" << vars().code_name() << "[d" << probe(j)->code_name() << "] = 0.; // (output dep)\n";
+	}
       }else{itested();
       }
 
@@ -774,8 +822,8 @@ std::string OUT_EXPRESSION::make_cc_expression_(std::ostream& o, Expression cons
       o__ "{ // ternary " << _ctx << "\n";
       {
 	indent y;
-	o__ "ddouble& tt0 = " << vars().code_name() << ";\n"; // BUG: float??
-	o__ "if(" << arg1 << "){ // true part\n";
+	o__ "auto& tt0 = " << vars().code_name() << ";\n";
+	o__ "if(" << arg1 << "){\n";
 	{
 	  indent x;
 	  // BUG: nest?

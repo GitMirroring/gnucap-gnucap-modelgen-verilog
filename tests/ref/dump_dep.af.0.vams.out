@@ -19,7 +19,7 @@ module dep0(d, g);
 
   analog begin : main // always
     // a : 1
-    // b : 0
+    // b : 1
     // c : 1
     real a// [V(g)] +
 ;
@@ -30,9 +30,9 @@ module dep0(d, g);
     begin
     // a : 1
     // c : 1
-      a = V(g); // dep: V(g) s1 r4
+      a = V(g); // dep: V(g) s1 r5
       c = testaf(a, b); // dep: V(g) s3 r4
-      I(d) <+ b; // s1 r1
+      I(d) <+ b; // dep: V(g) s2 r1
       I(g) <+ c; // dep: V(g) s3 r1
     end
   end

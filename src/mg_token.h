@@ -422,6 +422,8 @@ public:
   explicit Token_ARGUMENT() : Token_VAR_REF("", nullptr){ untested();unreachable();}
   explicit Token_ARGUMENT(std::string Name, Base* b, Base* tdata)
     : Token_VAR_REF(Name, b, tdata) {}
+  explicit Token_ARGUMENT(Token_ARGUMENT const& a, Base* data)
+    : Token_VAR_REF(a.name(), nullptr, data) {}
   void dump(std::ostream& o)const override;
 public: // LiSt
   std::string key() const { untested();unreachable();return "";}
