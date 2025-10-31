@@ -203,6 +203,7 @@ public: // manipulate storage
   void use_var() {_stt.use();}
 protected:
   void clear_deps();
+  bool has_deps()const;
 private:
   void new_deps();
   void new_data();

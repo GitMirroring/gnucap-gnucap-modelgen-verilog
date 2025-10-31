@@ -280,6 +280,12 @@ TData const& Assignment::data()const
   return *_data;
 }
 /*--------------------------------------------------------------------------*/
+bool Variable_Decl::has_deps() const
+{
+  assert(_data);
+  return _data->has_deps();
+}
+/*--------------------------------------------------------------------------*/
 void Variable_Decl::new_data()
 {
   assert(owner());
@@ -347,6 +353,9 @@ bool Variable_Decl::is_state_var() const
 /*--------------------------------------------------------------------------*/
 bool Variable_Decl::is_common() const
 {
+  // assert(_data);
+  // !has_deps() && !is_state_var()
+  //  && !_data->has_sensitivities();
   return _stt.is_common();
 }
 /*--------------------------------------------------------------------------*/
